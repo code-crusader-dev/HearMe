@@ -41,25 +41,41 @@ import {
 const ADMIN_USERNAME = import.meta.env.VITE_ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'hearme2026';
 
+const datasetMediaMap = Object.fromEntries(
+  Object.entries(import.meta.glob('../dataset/*.{png,jpg,jpeg,webp}', { eager: true, import: 'default' })).map(([path, url]) => [path.split('/').pop().toLowerCase(), url]),
+);
+
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const NUMBERS = '0123456789'.split('');
-export const seedCategories = ['Alphabet', 'Numbers', 'Phrases'];
-const PHRASES = [
-  ['Hello', 'Open palm raised near shoulder, small outward movement.'],
-  ['Thank you', 'Fingertips move forward from chin.'],
-  ['Please', 'Flat palm circles near chest.'],
-  ['Sorry', 'Closed hand makes a small circle on chest.'],
-  ['Yes', 'Fist nods downward twice.'],
-  ['No', 'Index and middle finger close against thumb.'],
-  ['Help', 'One hand supports a raised fist moving upward.'],
-  ['Water', 'Three fingers tap near the lips.'],
-  ['Food', 'Fingertips move toward mouth.'],
-  ['Good morning', 'Greeting motion followed by morning rise gesture.'],
-  ['Good night', 'Greeting motion followed by night closing gesture.'],
-  ['My name is', 'Point to self, then two fingers tap together.'],
-  ['How are you', 'Hands turn outward with questioning expression.'],
-  ['I understand', 'Index finger lifts near forehead.'],
-  ['I need a doctor', 'Point to self, need gesture, then medical cross cue.'],
+export const seedCategories = ['Alphabet', 'Numbers', 'Words'];
+const DATASET_WORDS = [
+  ['and', 'And', 'Bring both hands together and move them outward.'],
+  ['are', 'Are', 'Use a questioning handshape with a slight tilt.'],
+  ['black', 'Black', 'Trace a downward line with the dominant hand.'],
+  ['bye', 'Bye', 'Wave the hand outward in a friendly motion.'],
+  ['call', 'Call', 'Open palm taps the ear or the hand is cupped.'],
+  ['doctor', 'Doctor', 'Make a small cross shape near the chest.'],
+  ['food', 'Food', 'Tap fingertips toward the mouth.'],
+  ['for', 'For', 'Open hands sweep forward with a gentle motion.'],
+  ['hello', 'Hello', 'Open palm near the shoulder, then move outward.'],
+  ['how', 'How', 'Hands turn outward and curve slightly.'],
+  ['me', 'Me', 'Point to yourself with your index finger.'],
+  ['morning', 'Morning', 'Open hand lifts upward as if greeting the sun.'],
+  ['need', 'Need', 'Use a clasped hand motion toward the body.'],
+  ['night', 'Night', 'Lower the hand in a closing motion toward the body.'],
+  ['no', 'No', 'Use a small side-to-side motion with the hand.'],
+  ['please', 'Please', 'Circle the hand near the chest with a gentle motion.'],
+  ['red', 'Red', 'Point the index finger downward and trace a small line.'],
+  ['thank', 'Thank', 'Move the fingertips forward from the chin.'],
+  ['time', 'Time', 'Show a small clock shape with the hands.'],
+  ['understand', 'Understand', 'Tap the forehead and then open the hand.'],
+  ['water', 'Water', 'Tap the fingertips near the lips.'],
+  ['what', 'What', 'Open the hand with a questioning motion.'],
+  ['when', 'When', 'Use an open hand and small circular motion.'],
+  ['where', 'Where', 'Point outward and then turn the hand.'],
+  ['white', 'White', 'Sweep the hand outward with a light motion.'],
+  ['yes', 'Yes', 'Nod the hand downward twice in a small motion.'],
+  ['you', 'You', 'Point toward the other person.'],
 ];
 
 const makeCardClip = (label, color = 'cobalt') =>
@@ -89,29 +105,33 @@ export function mergeCategories(...groups) {
   );
 }
 
-export const seedLibrary = [
-  ...LETTERS.map((letter) => ({
-    id: `letter-${letter}`,
-    term: letter,
-    category: 'Alphabet',
-    description: `Indian Sign Language alphabet reference for the letter ${letter}.`,
-    mediaUrl: makeCardClip(letter),
-  })),
-  ...NUMBERS.map((number) => ({
-    id: `number-${number}`,
-    term: number,
-    category: 'Numbers',
-    description: `Indian Sign Language number reference for ${number}.`,
-    mediaUrl: makeCardClip(number, 'sky'),
-  })),
-  ...PHRASES.map(([term, description], index) => ({
-    id: `phrase-${index}`,
-    term,
-    category: 'Phrases',
-    description,
-    mediaUrl: makeCardClip(term.split(' ')[0]),
-  })),
-];
+function buildDatasetLibrary() {
+  return [
+    ...LETTERS.map((letter) => ({
+      id: `dataset-letter-${letter}`,
+      term: letter,
+      category: 'Alphabet',
+      description: `Indian Sign Language alphabet reference for the letter ${letter}.`,
+      mediaUrl: datasetMediaMap[`${letter.toLowerCase()}.png`] || makeCardClip(letter),
+    })),
+    ...NUMBERS.map((number) => ({
+      id: `dataset-number-${number}`,
+      term: number,
+      category: 'Numbers',
+      description: `Indian Sign Language number reference for ${number}.`,
+      mediaUrl: datasetMediaMap[`${number}.png`] || makeCardClip(number, 'sky'),
+    })),
+    ...DATASET_WORDS.map(([fileName, term, description], index) => ({
+      id: `dataset-word-${index}`,
+      term,
+      category: 'Words',
+      description,
+      mediaUrl: datasetMediaMap[`${fileName}.png`] || makeCardClip(term),
+    })),
+  ];
+}
+
+export const seedLibrary = buildDatasetLibrary();
 
 export const seedSources = [
   {
@@ -191,6 +211,26 @@ function readBoolean(key, fallback) {
 function readArray(key, fallback) {
   const value = readJson(key, fallback);
   return Array.isArray(value) ? value : fallback;
+}
+
+function normalizeLibraryState(items = []) {
+  const datasetEntries = buildDatasetLibrary();
+  const seenTerms = new Set(datasetEntries.map((entry) => entry.term.toLowerCase()));
+  const customItems = items.filter((item) => {
+    if (!item || typeof item.term !== 'string') return false;
+    const trimmed = item.term.trim();
+    return Boolean(trimmed) && !/\s/.test(trimmed) && !seenTerms.has(trimmed.toLowerCase());
+  });
+
+  return [
+    ...datasetEntries,
+    ...customItems.map((item) => ({
+      ...item,
+      term: item.term.trim(),
+      category: item.category || 'Words',
+      mediaUrl: item.mediaUrl || makeCardClip(item.term.trim()),
+    })),
+  ];
 }
 
 function writeJson(key, value) {
@@ -337,6 +377,95 @@ function MediaPreview({ src, alt, className = 'h-full w-full object-cover' }) {
     return <video className={className} src={src} controls muted playsInline />;
   }
   return <img className={className} src={src} alt={alt} />;
+}
+
+function ZoomableImage({ src, alt }) {
+  const wrapperRef = useRef(null);
+  const imgRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const draggingRef = useRef(false);
+  const lastPosRef = useRef({ x: 0, y: 0 });
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  function reset() {
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
+  }
+
+  function handleWheel(e) {
+    e.preventDefault();
+    const delta = -e.deltaY;
+    const factor = delta > 0 ? 1.12 : 0.88;
+    setScale((s) => {
+      const next = clamp(s * factor, 1, 3);
+      // if scaling down below 1, reset translate
+      if (next === 1) setTranslate({ x: 0, y: 0 });
+      return next;
+    });
+  }
+
+  function handleMouseDown(e) {
+    if (scale <= 1) return;
+    draggingRef.current = true;
+    lastPosRef.current = { x: e.clientX, y: e.clientY };
+  }
+
+  function handleMouseMove(e) {
+    if (!draggingRef.current) return;
+    const dx = e.clientX - lastPosRef.current.x;
+    const dy = e.clientY - lastPosRef.current.y;
+    lastPosRef.current = { x: e.clientX, y: e.clientY };
+    setTranslate((t) => ({ x: t.x + dx, y: t.y + dy }));
+  }
+
+  function handleMouseUp() {
+    draggingRef.current = false;
+  }
+
+  function handleTouchStart(e) {
+    if (e.touches?.length === 1 && scale > 1) {
+      const t = e.touches[0];
+      lastPosRef.current = { x: t.clientX, y: t.clientY };
+    }
+  }
+
+  function handleTouchMove(e) {
+    if (e.touches?.length === 1 && scale > 1) {
+      const t = e.touches[0];
+      const dx = t.clientX - lastPosRef.current.x;
+      const dy = t.clientY - lastPosRef.current.y;
+      lastPosRef.current = { x: t.clientX, y: t.clientY };
+      setTranslate((t0) => ({ x: t0.x + dx, y: t0.y + dy }));
+      e.preventDefault();
+    }
+  }
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="w-full h-auto overflow-hidden touch-none"
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onDoubleClick={reset}
+      style={{ cursor: scale > 1 ? 'grab' : 'auto' }}
+    >
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        draggable={false}
+        style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`, transformOrigin: 'center center' }}
+        className="mx-auto block max-h-[80vh] max-w-[90vw] object-contain"
+      />
+    </div>
+  );
 }
 
 function Field({ label, value, onChange, placeholder, type = 'text', rows }) {
@@ -805,6 +934,7 @@ function ClipForm({ initial, onSave, onCancel }) {
 function ClipGallery({ clips, setClips, isAdmin }) {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState(null);
+  const [preview, setPreview] = useState(null);
   const filtered = clips.filter((clip) => `${clip.phrase} ${clip.description}`.toLowerCase().includes(query.toLowerCase()));
 
   function saveClip(clip) {
@@ -818,30 +948,24 @@ function ClipGallery({ clips, setClips, isAdmin }) {
 
   return (
     <section className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div>
-          <h2 className="text-3xl font-black text-slate-950 dark:text-white">Clip Gallery</h2>
-          <p className="mt-2 text-slate-600 dark:text-slate-300">Short sentence and line videos used before single-word library matching in Text-to-Sign.</p>
-        </div>
-        {isAdmin && (
-          <button className="inline-flex items-center gap-2 rounded-xl bg-cobalt-600 px-4 py-2 font-bold text-white hover:bg-cobalt-700" onClick={() => setEditing({})}>
-            <Plus size={18} aria-hidden="true" /> Add clip
-          </button>
-        )}
-      </div>
+      
       <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-[1fr_auto] md:items-center">
         <label className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} aria-hidden="true" />
           <input className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-950 outline-none ring-cobalt-500/25 focus:ring-4 dark:border-slate-700 dark:bg-slate-950 dark:text-white" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clips" />
         </label>
-        <span className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">{filtered.length} clips</span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">{filtered.length} clips</span>
+          {isAdmin && (
+            <button className="inline-flex items-center gap-2 rounded-xl bg-cobalt-600 px-3 py-2 text-sm font-bold text-white hover:bg-cobalt-700" onClick={() => setEditing({})}>
+              <Plus size={16} aria-hidden="true" /> Add clip
+            </button>
+          )}
+        </div>
       </div>
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((clip) => (
           <article key={clip.id} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-glow dark:border-slate-800 dark:bg-slate-900">
-            <div className="aspect-video bg-slate-950">
-              <MediaPreview src={clip.mediaUrl} alt={`${clip.phrase} clip`} />
-            </div>
             {isAdmin && (
               <div className="absolute right-3 top-3 flex gap-2 opacity-0 transition group-hover:opacity-100">
                 <button className="grid size-9 place-items-center rounded-xl bg-white text-cobalt-700 shadow" onClick={() => setEditing(clip)} aria-label={`Edit ${clip.phrase}`}>
@@ -852,10 +976,13 @@ function ClipGallery({ clips, setClips, isAdmin }) {
                 </button>
               </div>
             )}
-            <div className="p-4">
-              <span className="rounded-xl bg-amber-50 px-2 py-1 text-xs font-black uppercase tracking-wide text-amber-700 dark:bg-amber-950/40 dark:text-amber-200">Sentence clip</span>
-              <h3 className="mt-3 text-xl font-black text-slate-950 dark:text-white">{clip.phrase}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{clip.description}</p>
+            <div className="aspect-video bg-slate-950">
+              <button type="button" className="h-full w-full" onClick={() => setPreview({ src: clip.mediaUrl, alt: `${clip.phrase} clip` })} aria-label={`Open ${clip.phrase}`}>
+                <MediaPreview src={clip.mediaUrl} alt={`${clip.phrase} clip`} />
+              </button>
+            </div>
+            <div className="p-6 text-center">
+              <h3 className="text-xl font-black text-slate-950 dark:text-white">{clip.phrase}</h3>
             </div>
           </article>
         ))}
@@ -863,6 +990,13 @@ function ClipGallery({ clips, setClips, isAdmin }) {
       {editing && (
         <Modal title={editing.id ? 'Edit clip' : 'Add clip'} onClose={() => setEditing(null)}>
           <ClipForm initial={editing.id ? editing : undefined} onSave={saveClip} onCancel={() => setEditing(null)} />
+        </Modal>
+      )}
+      {preview && (
+        <Modal title="Preview" onClose={() => setPreview(null)}>
+          <div className="max-w-[90vw]">
+            <ZoomableImage src={preview.src} alt={preview.alt} />
+          </div>
         </Modal>
       )}
     </section>
@@ -1148,7 +1282,11 @@ function TranslatePage({ library, clips, setClips, examples, setExamples, isAdmi
               {current ? (
                 <div className="grid w-full h-full gap-3 p-3">
                   <div className="aspect-video bg-slate-950 rounded-2xl overflow-hidden">
-                    <MediaPreview src={current.mediaUrl} alt={`${current.term} ISL reference`} />
+                    <MediaPreview
+                      src={current.mediaUrl}
+                      alt={`${current.term} ISL reference`}
+                      className={`h-full w-full ${['Alphabet', 'Numbers'].includes(current.category) ? 'object-contain' : 'object-cover'}`}
+                    />
                   </div>
                   <div className="grid gap-2 rounded-xl bg-white p-3 dark:bg-slate-900">
                     <p className="text-sm font-black text-slate-950 dark:text-white">{current.term}</p>
@@ -1179,7 +1317,7 @@ function TranslatePage({ library, clips, setClips, examples, setExamples, isAdmi
 }
 
 function LibraryForm({ initial, onSave, onCancel, categories }) {
-  const [form, setForm] = useState(initial || { term: '', category: 'Phrases', description: '', mediaUrl: '' });
+  const [form, setForm] = useState(initial || { term: '', category: 'Words', description: '', mediaUrl: '' });
   const [fileStatus, setFileStatus] = useState('');
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const categoryOptions = mergeCategories(categories, [form.category]);
@@ -1210,10 +1348,15 @@ function LibraryForm({ initial, onSave, onCancel, categories }) {
       className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        onSave({ ...form, mediaUrl: form.mediaUrl || makeCardClip(form.term || 'ISL') });
+        const cleanTerm = form.term.trim();
+        if (!cleanTerm || /\s/.test(cleanTerm)) {
+          setFileStatus('Library items must be a single word only.');
+          return;
+        }
+        onSave({ ...form, term: cleanTerm, mediaUrl: form.mediaUrl || makeCardClip(cleanTerm) });
       }}
     >
-      <Field label="Word or phrase" value={form.term} onChange={(value) => update('term', value)} placeholder="Hello" />
+      <Field label="Single word" value={form.term} onChange={(value) => update('term', value)} placeholder="Hello" />
       <label className="grid gap-1 text-sm font-medium text-slate-700 dark:text-slate-200">
         Category
         <select
@@ -1363,6 +1506,7 @@ function LibraryPage({ library, setLibrary, categories, setCategories, isAdmin }
   const [category, setCategory] = useState('All');
   const [editing, setEditing] = useState(null);
   const [editingCategories, setEditingCategories] = useState(false);
+  const [preview, setPreview] = useState(null);
   const categoryOptions = mergeCategories(categories, library.map((item) => item.category));
   const filterCategories = ['All', ...categoryOptions];
   const filtered = library.filter((item) => {
@@ -1400,7 +1544,7 @@ function LibraryPage({ library, setLibrary, categories, setCategories, isAdmin }
         <div>
           <p className="text-sm font-black uppercase tracking-[0.24em] text-cobalt-600 dark:text-sky-300">ISL Library</p>
           <h1 className="mt-3 text-4xl font-black leading-tight text-slate-950 dark:text-white md:text-5xl">A quiet library of signs.</h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">Browse Indian Sign Language for alphabets, numbers and everyday phrases. Filter by category or search directly.</p>
+          <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">Browse Indian Sign Language for alphabets, numbers and everyday single words. Filter by category or search directly.</p>
         </div>
         {isAdmin && (
           <div className="flex flex-wrap gap-2">
@@ -1427,9 +1571,11 @@ function LibraryPage({ library, setLibrary, categories, setCategories, isAdmin }
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filtered.map((item) => (
           <article key={item.id} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="aspect-video bg-slate-950">
-              <MediaPreview src={item.mediaUrl} alt={`${item.term} ISL reference`} />
-            </div>
+              <div className="aspect-video bg-slate-950">
+                <button type="button" className="h-full w-full" onClick={() => setPreview({ src: item.mediaUrl, alt: `${item.term} ISL reference` })} aria-label={`Open ${item.term}`}>
+                  <MediaPreview src={item.mediaUrl} alt={`${item.term} ISL reference`} />
+                </button>
+              </div>
             {isAdmin && (
               <div className="absolute right-3 top-3 flex translate-y-1 gap-2 opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100">
                 <button className="grid size-9 place-items-center rounded-xl bg-white text-cobalt-700 shadow" onClick={() => setEditing(item)} aria-label={`Edit ${item.term}`}>
@@ -1458,6 +1604,13 @@ function LibraryPage({ library, setLibrary, categories, setCategories, isAdmin }
       {editingCategories && (
         <Modal title="Edit categories" onClose={() => setEditingCategories(false)}>
           <CategoryManager categories={categoryOptions} library={library} onAdd={addCategory} onRename={renameCategory} onDelete={deleteCategory} />
+        </Modal>
+      )}
+      {preview && (
+        <Modal title="Preview" onClose={() => setPreview(null)}>
+          <div className="max-w-[90vw]">
+            <ZoomableImage src={preview.src} alt={preview.alt} />
+          </div>
         </Modal>
       )}
     </main>
@@ -1552,16 +1705,72 @@ export default function App() {
   const [page, setPage] = useState('home');
   const [darkMode, setDarkMode] = useState(() => readBoolean('hearme-dark-mode', false));
   const [isAdmin, setIsAdmin] = useState(() => hasStorage() && localStorage.getItem('hearme-admin') === 'true');
-  const [library, setLibrary] = useState(() => readArray('hearme-library', seedLibrary));
+  const [library, setLibrary] = useState(() => normalizeLibraryState(readArray('hearme-library', seedLibrary)));
   const [sources, setSources] = useState(() => readArray('hearme-sources', seedSources));
   const [clips, setClips] = useState(() => readArray('hearme-clips', seedClips));
   const [trainingExamples, setTrainingExamples] = useState(() => readArray('hearme-training-examples', []));
   const [categories, setCategories] = useState(() => mergeCategories(readArray('hearme-categories', seedCategories), seedLibrary.map((item) => item.category)));
+  const [persistReady, setPersistReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch('/api/state')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('api unavailable');
+        const payload = await response.json();
+        if (!active) return;
+        if (typeof payload.darkMode === 'boolean') setDarkMode(payload.darkMode);
+        if (Array.isArray(payload.library) && payload.library.length > 0) {
+          setLibrary(normalizeLibraryState(payload.library));
+        }
+        if (Array.isArray(payload.sources) && payload.sources.length > 0) {
+          setSources(payload.sources);
+        }
+        if (Array.isArray(payload.clips) && payload.clips.length > 0) {
+          setClips(payload.clips);
+        }
+        if (Array.isArray(payload.trainingExamples) && payload.trainingExamples.length > 0) {
+          setTrainingExamples(payload.trainingExamples);
+        }
+        if (Array.isArray(payload.categories) && payload.categories.length > 0) {
+          setCategories(payload.categories);
+        }
+      })
+      .catch(() => {
+        // Fall back to local storage when the API is unavailable.
+      })
+      .finally(() => {
+        if (active) setPersistReady(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
     writeJson('hearme-dark-mode', darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    if (!persistReady) return;
+    fetch('/api/state', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        darkMode,
+        library,
+        sources,
+        clips,
+        trainingExamples,
+        categories,
+      }),
+    }).catch(() => {
+      // Fall back to local storage when the API is unavailable.
+    });
+  }, [persistReady, darkMode, library, sources, clips, trainingExamples, categories]);
 
   useEffect(() => writeJson('hearme-library', library), [library]);
   useEffect(() => writeJson('hearme-sources', sources), [sources]);
